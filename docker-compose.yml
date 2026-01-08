@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  dit-exam:
+    build: .
+    container_name: dit-exam
+    restart: unless-stopped
+    volumes:
+      - ./database:/app/database
+      - ./progress.json:/app/progress.json
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dit-exam.rule=Host(`dit-exam.basta.one`)"
+      - "traefik.http.routers.dit-exam.entrypoints=websecure"
+      - "traefik.http.routers.dit-exam.tls.certresolver=teeresolver"
+      - "traefik.http.routers.dit-exam.tls=true"
+      - "traefik.http.services.dit-exam.loadbalancer.server.port=8080"

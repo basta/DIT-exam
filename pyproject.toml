@@ -1,0 +1,10 @@
+[project]
+name = "dit-exam"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "nicegui>=3.5.0",
+    "python-frontmatter>=1.1.0",
+]

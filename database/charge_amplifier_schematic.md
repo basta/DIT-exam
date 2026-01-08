@@ -20,7 +20,7 @@ Nábojový zesilovač (Charge Amplifier) převádí náboj $Q$ z piezoelektrick�
 ### Zapojení:
 1.  **Operační zesilovač (OZ):** Invertující zapojení.
 2.  **Vstup:** Piezo senzor připojen na invertující vstup (-). Neinvertující vstup (+) uzemněn.
-3.  **Zpětná vazba:** Mezi výstupem a invertujícím vstupem je zapojen **kondenzátor $C_f$** (feedback capacitor). (Paralelně k němu bývá velký odpor $R_f$ pro stabilizaci DC pracovního bodu/vybíjení).
+3.  **Zpětná vazba:** Mezi výstupem a invertujícím vstupem je zapojen kondenzátor $C_f$ (feedback capacitor). (Paralelně k němu bývá velký odpor $R_f$ pro stabilizaci DC pracovního bodu/vybíjení).
 
 ### Princip:
 - Díky virtuální nule na vstupu teče náboj ze senzoru do zpětnovazebního kondenzátoru.
