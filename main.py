@@ -247,7 +247,12 @@ def main_page():
     def render_login():
         content_area.clear()
         with content_area:
-            ui.label("🔒 Restricted Area").classes("text-2xl font-bold mb-4")
+            ui.label("👋 Welcome!").classes("text-2xl font-bold mb-4")
+            ui.markdown(
+                "Enter any **passkey** or **phrase** to log in.<br>"
+                "If this is your first time, a new user profile is created automatically.<br>"
+                "To resume your progress later, simply use the same passkey."
+            ).classes("text-gray-600 mb-6 text-sm")
             pwd = ui.input("Passkey", password=True).classes("w-full")
 
             def check_pass():
