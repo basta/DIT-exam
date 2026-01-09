@@ -10,6 +10,44 @@ from nicegui import ui, app
 QUESTIONS_DIR = "./database"
 USERS_DIR = "./users"
 
+
+def get_tracks():
+    """Scans QUESTIONS_DIR for subdirectories (tracks)."""
+    tracks = []
+    try:
+        items = os.listdir(QUESTIONS_DIR)
+    except FileNotFoundError:
+        return []
+
+    for item in items:
+        full_path = os.path.join(QUESTIONS_DIR, item)
+        if os.path.isdir(full_path) and not item.startswith("."):
+            # Check for info.json
+            info_path = os.path.join(full_path, "info.json")
+            track_info = {
+                "id": item,
+                "name": item,  # Fallback
+                "description": "",
+                "path": full_path,
+            }
+            if os.path.exists(info_path):
+                try:
+                    with open(info_path, "r") as f:
+                        data = json.load(f)
+                        track_info.update(data)
+                        # Ensure path is correct even if json says otherwise?
+                        # Usually json might have 'id' but we want 'path' to be real.
+                        track_info["path"] = full_path
+                except Exception as e:
+                    print(f"Error reading {info_path}: {e}")
+
+            tracks.append(track_info)
+
+    # Sort by name
+    tracks.sort(key=lambda x: x["name"])
+    return tracks
+
+
 # --- BACKEND LOGIC ---
 import hashlib
 
@@ -36,13 +74,17 @@ def save_progress(user_hash, data):
         json.dump(data, f, indent=2)
 
 
-def get_stats(progress):
+def get_stats(progress, track_dir):
     """Calculates score distribution for the histogram."""
-    files = [
-        f
-        for f in os.listdir(QUESTIONS_DIR)
-        if f.endswith(".md") and f != "_template.md"
-    ]
+    # Use the specific track directory
+    try:
+        files = [
+            f
+            for f in os.listdir(track_dir)
+            if f.endswith(".md") and f != "_template.md"
+        ]
+    except FileNotFoundError:
+        return {"Mastered": 0, "Learned": 0, "New": 0, "Learning": 0, "Hard": 0}
 
     # Bins: < -20, -20~-1, 0, 1~20, > 20
     # keys allow for sorting and labeling
@@ -64,7 +106,7 @@ def get_stats(progress):
 
             # Simple approach: Load frontmatter (as in previous code)
             # This is acceptable for hundreds of files.
-            post = frontmatter.load(os.path.join(QUESTIONS_DIR, f))
+            post = frontmatter.load(os.path.join(track_dir, f))
             q_id = post.metadata.get("id", f)
 
             score = 0
@@ -89,21 +131,24 @@ def get_stats(progress):
     return bins
 
 
-def get_due_card(progress):
+def get_due_card(progress, track_dir):
     """Finds the highest priority card for cramming."""
     # List all .md files (exclude _template.md)
-    files = [
-        f
-        for f in os.listdir(QUESTIONS_DIR)
-        if f.endswith(".md") and f != "_template.md"
-    ]
+    try:
+        files = [
+            f
+            for f in os.listdir(track_dir)
+            if f.endswith(".md") and f != "_template.md"
+        ]
+    except FileNotFoundError:
+        return None
 
     candidates = []
     now = datetime.now()
 
     for f in files:
         try:
-            post = frontmatter.load(os.path.join(QUESTIONS_DIR, f))
+            post = frontmatter.load(os.path.join(track_dir, f))
             q_id = post.metadata.get("id", f)
 
             # Cramming Logic: Default to score 0 (neutral)
@@ -208,21 +253,55 @@ def main_page():
             def check_pass():
                 if pwd.value:
                     user_hash = get_user_hash(pwd.value)
-                    render_study(user_hash)
+                    render_track_selection(user_hash)
                 else:
                     ui.notify("Please enter a passkey", color="warning")
 
             ui.button("Enter", on_click=check_pass).classes("w-full")
             pwd.on("keydown.enter", check_pass)
 
-    def render_study(user_hash):
+    def render_track_selection(user_hash):
+        content_area.clear()
+        tracks = get_tracks()
+
+        with content_area:
+            ui.label("Select a Track").classes("text-2xl font-bold mb-6")
+
+            if not tracks:
+                ui.label("No tracks found.").classes("text-red-500")
+                return
+
+            with ui.column().classes("w-full gap-4"):
+                for track in tracks:
+                    with (
+                        ui.card()
+                        .classes("w-full cursor-pointer hover:bg-gray-50")
+                        .on("click", lambda t=track: render_study(user_hash, t))
+                    ):
+                        ui.label(track["name"]).classes("text-lg font-bold")
+                        if track["description"]:
+                            ui.label(track["description"]).classes(
+                                "text-sm text-gray-600"
+                            )
+
+    def render_study(user_hash, track):
         content_area.clear()
 
         # Load Progress
         progress = load_progress(user_hash)
 
+        # Header with Track Name and Switch Button
+        with content_area:
+            with ui.row().classes(
+                "w-full justify-between items-center mb-6 border-b pb-4"
+            ):
+                ui.label(track["name"]).classes("text-xl font-bold")
+                ui.button(
+                    "Switch Track", on_click=lambda: render_track_selection(user_hash)
+                ).props("outline size=sm")
+
         # Fetch Data
-        card = get_due_card(progress)
+        card = get_due_card(progress, track["path"])
 
         if not card:
             with content_area:
@@ -230,9 +309,9 @@ def main_page():
                     "text-3xl font-bold text-green-500"
                 )
                 ui.label("No questions due right now.").classes("text-lg")
-                ui.button("Refresh", on_click=lambda: render_study(user_hash)).classes(
-                    "mt-4"
-                )
+                ui.button(
+                    "Refresh", on_click=lambda: render_study(user_hash, track)
+                ).classes("mt-4")
                 ui.button("Logout", on_click=render_login).props("color=grey").classes(
                     "mt-4"
                 )
@@ -241,7 +320,7 @@ def main_page():
         # Render Card
         with content_area:
             # Header Info
-            stats = get_stats(progress)
+            stats = get_stats(progress, track["path"])
             # Stats Chart Data
             # Define colors for each category
             # Mastered (Deep Green), Learned (Green), New (Blue), Learning (Orange), Hard (Red)
@@ -359,7 +438,7 @@ def main_page():
                         ui.notify(
                             f"Priority Updated (Score: {new_score})", color="positive"
                         )
-                        render_study(user_hash)
+                        render_study(user_hash, track)
 
                     ui.button(
                         "Hard (Reset)", on_click=lambda: submit_review("hard")
@@ -389,6 +468,26 @@ def main_page():
 
 # --- SERVER SETUP ---
 # This exposes your questions folder so images can be loaded via /media/filename.png
+# NOTE: We need to expose subdirectories too if we want direct access,
+# but static files serve usually handles subdirectories recursively?
+# NiceGUI add_static_files maps a URL path to a local directory.
+# If we keep serving QUESTIONS_DIR at /media, then /media/diagnostics/image.png should work
+# IF the images were moved.
+# CAUTION: The user did not specificially ask to move images, but standard practice suggests images ideally stay near markdown
+# or in a common media folder.
+# The original logic served QUESTIONS_DIR. The images were likely in QUESTIONS_DIR or a subdir?
+# The file list showed images in QUESTIONS_DIR.
+# I moved files with "mv *.md", so images (which are not .md) should still be in QUESTIONS_DIR root?
+# No, "find database -maxdepth 1 -type f -name '*.md' ... exec mv"
+# Images are PNGs. I didn't move them.
+# So if a markdown file refers to "image.png" (relative), and the markdown is now in "database/diagnostics/"
+# and image is in "database/", the link might break if the preprocessor expects them together or if the URL assumes a flat structure.
+
+# Let's check preprocess_content again.
+# It converts `![[image.png]]` to `![image.png](/media/image.png)`.
+# Since `/media` maps to `QUESTIONS_DIR`, and images are still in `QUESTIONS_DIR`,
+# `/media/image.png` will still resolve correctly!
+# So we don't need to change this line, provided we confirm images weren't moved.
 app.add_static_files("/media", QUESTIONS_DIR)
 
 # Enable LaTeX support in the head
