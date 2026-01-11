@@ -157,6 +157,14 @@ def get_due_card(progress, track_dir):
             last_seen_str = card_data.get("last_seen", "2000-01-01T00:00:00")
             last_seen = datetime.fromisoformat(last_seen_str)
 
+            # Calculate Unlock Time
+            # If last_seen is future (Skip), that's the unlock time.
+            # Else, enforce 5 minute cooldown.
+            if last_seen > now:
+                unlock_time = last_seen
+            else:
+                unlock_time = last_seen + timedelta(minutes=5)
+
             candidates.append(
                 {
                     "id": q_id,
@@ -165,6 +173,7 @@ def get_due_card(progress, track_dir):
                     "meta": post.metadata,
                     "score": score,
                     "last_seen": last_seen,
+                    "unlock_time": unlock_time,
                 }
             )
         except Exception as e:
@@ -173,18 +182,16 @@ def get_due_card(progress, track_dir):
     if not candidates:
         return None
 
-    # Sort: Highest Score First (Descending)
-    # Tie-breaker: Oldest first
-    candidates.sort(key=lambda x: (-x["score"], x["last_seen"]))
+    # 1. Filter Ready Candidates
+    ready = [c for c in candidates if c["unlock_time"] <= now]
 
-    # Cooldown Check (5 minutes)
-    # Try to find the first card that satisfies cooldown
-    for card in candidates:
-        if (now - card["last_seen"]).total_seconds() > 300:  # 5 minutes
-            return card
+    if ready:
+        # Sort Ready: Highest Score First
+        ready.sort(key=lambda x: (-x["score"], x["last_seen"]))
+        return ready[0]
 
-    # If all cards are in cooldown, just return the highest priority one (cram mode ignores "wait")
-    # unless we really want to force a break. But user said "no stop point".
+    # 2. Fallback: None ready -> Closest to unlocking
+    candidates.sort(key=lambda x: x["unlock_time"])
     return candidates[0]
 
 
@@ -421,21 +428,29 @@ def main_page():
                         # Cramming Logic (Priority Queue)
                         current_score = card["score"]
 
+                        next_seen = datetime.now()
+
                         if rating == "hard":
                             # Shoot to top
                             new_score = current_score + 20
                         elif rating == "good":
                             # Drop slightly
                             new_score = current_score - 5
-                        else:  # easy
+                        elif rating == "easy":
                             # Drop significantly
                             new_score = current_score - 15
+                        elif rating == "skip":
+                            # Pause for 10 minutes
+                            new_score = current_score
+                            next_seen = datetime.now() + timedelta(minutes=10)
+                        else:
+                            new_score = current_score
 
                         # Save
                         prog = load_progress(user_hash)
                         prog[card["id"]] = {
                             "score": new_score,
-                            "last_seen": datetime.now().isoformat(),
+                            "last_seen": next_seen.isoformat(),
                         }
                         save_progress(user_hash, prog)
 
@@ -454,6 +469,9 @@ def main_page():
                     ui.button("Easy", on_click=lambda: submit_review("easy")).props(
                         "color=green"
                     ).classes("flex-1")
+                    ui.button(
+                        "Skip (10m)", on_click=lambda: submit_review("skip")
+                    ).props("color=grey").classes("flex-1")
 
             # Show Answer Button
             show_btn = ui.button(
