@@ -8,6 +8,7 @@ services:
     volumes:
       - ./database:/app/database
       - ./progress.json:/app/progress.json
+      - ./users:/app/users
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dit-exam.rule=Host(`dit-exam.basta.one`)"
