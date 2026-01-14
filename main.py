@@ -304,13 +304,14 @@ def main_page():
 
         # Header with Track Name and Switch Button
         with content_area:
-            with ui.row().classes(
-                "w-full justify-between items-center mb-6 border-b pb-4"
-            ):
-                ui.label(track["name"]).classes("text-xl font-bold")
-                ui.button(
-                    "Switch Track", on_click=lambda: render_track_selection(user_hash)
-                ).props("outline size=sm")
+            pass
+            # with ui.row().classes(
+            #     "w-full justify-between items-center mb-6 border-b pb-4"
+            # ):
+            #     ui.label(track["name"]).classes("text-xl font-bold")
+            #     ui.button(
+            #         "Switch Track", on_click=lambda: render_track_selection(user_hash)
+            #     ).props("outline size=sm")
 
         # Fetch Data
         card = get_due_card(progress, track["path"])
@@ -350,9 +351,23 @@ def main_page():
                 chart_data.append({"value": v, "itemStyle": {"color": colors[i]}})
 
             with ui.row().classes("w-full justify-between items-center mb-4"):
-                ui.label(card["meta"].get("course", "General")).classes(
-                    "text-sm font-bold uppercase tracking-wider text-gray-500"
-                )
+                with ui.column().classes("gap-0"):
+                    with ui.row():
+                        ui.label(card["meta"].get("course", "General")).classes(
+                            "text-sm font-bold uppercase tracking-wider text-gray-500"
+                        )
+                        ui.button(
+                            "Switch Track",
+                            on_click=lambda: render_track_selection(user_hash),
+                        ).props("outline size=sm")
+                    with ui.row().classes("items-center gap-2"):
+                        ui.label(f"{card['file']} • {card['score']}").classes(
+                            "text-xs text-gray-400"
+                        )
+                        github_url = f"https://github.com/basta/DIT-exam/blob/master/database/{track['id']}/{card['file']}"
+                        ui.button(icon="open_in_new").props(
+                            f'flat round size=xs density=compact color=grey href="{github_url}" target="_blank"'
+                        ).tooltip("Open in GitHub")
 
                 with ui.row().classes("items-center gap-4 flex-1 justify-end"):
                     # Echart Histogram
@@ -393,11 +408,11 @@ def main_page():
                     ).classes("w-64 h-32")  # Increased size slightly to fit labels
 
                     # Tags
-                    with ui.row().classes("items-center gap-1"):
-                        for tag in card["meta"].get("tags", []):
-                            ui.label(f"#{tag}").classes(
-                                "text-xs bg-gray-200 px-2 py-1 rounded"
-                            )
+                    # with ui.row().classes("items-center gap-1"):
+                    #     for tag in card["meta"].get("tags", []):
+                    #         ui.label(f"#{tag}").classes(
+                    #             "text-xs bg-gray-200 px-2 py-1 rounded"
+                    #         )
 
             # QUESTION CONTENT
             # We process the text to fix image links before rendering
