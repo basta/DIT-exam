@@ -1,5 +1,6 @@
 import os
 import json
+import random
 import re
 import frontmatter
 from datetime import datetime, timedelta
@@ -181,6 +182,9 @@ def get_due_card(progress, track_dir):
 
     if not candidates:
         return None
+
+    # Shuffle candidates to ensure random selection for ties
+    random.shuffle(candidates)
 
     # 1. Filter Ready Candidates
     ready = [c for c in candidates if c["unlock_time"] <= now]
