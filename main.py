@@ -10,6 +10,7 @@ from nicegui import ui, app
 # --- CONFIGURATION ---
 QUESTIONS_DIR = "./database"
 USERS_DIR = "./users"
+INVALID_OPTION_MARKERS = ["N/A"]
 
 
 def get_tracks():
@@ -244,6 +245,20 @@ def preprocess_content(text):
     # Pattern: $$...$$ OR $...$
     pattern_math_content = r"(\$\$[\s\S]*?\$\$|\$[^\n$]*?\$)"
     text = re.sub(pattern_math_content, protect_math, text)
+
+    # 5. Hide Options if Invalid
+    # Finds '## Options' and removes the section if it contains any invalid marker.
+    # Uses a lookahead to stop at the next header or '---' separator.
+    pattern_options = r"(?m)^## Options\s*(.*?)(?=^---|^(?:# )|\Z)"
+
+    def check_and_remove(match):
+        content = match.group(1)
+        for marker in INVALID_OPTION_MARKERS:
+            if marker in content:
+                return ""  # Remove section
+        return match.group(0)
+
+    text = re.sub(pattern_options, check_and_remove, text, flags=re.DOTALL)
 
     return text
 
@@ -508,28 +523,6 @@ def main_page():
     render_login()
 
 
-# --- SERVER SETUP ---
-# This exposes your questions folder so images can be loaded via /media/filename.png
-# NOTE: We need to expose subdirectories too if we want direct access,
-# but static files serve usually handles subdirectories recursively?
-# NiceGUI add_static_files maps a URL path to a local directory.
-# If we keep serving QUESTIONS_DIR at /media, then /media/diagnostics/image.png should work
-# IF the images were moved.
-# CAUTION: The user did not specificially ask to move images, but standard practice suggests images ideally stay near markdown
-# or in a common media folder.
-# The original logic served QUESTIONS_DIR. The images were likely in QUESTIONS_DIR or a subdir?
-# The file list showed images in QUESTIONS_DIR.
-# I moved files with "mv *.md", so images (which are not .md) should still be in QUESTIONS_DIR root?
-# No, "find database -maxdepth 1 -type f -name '*.md' ... exec mv"
-# Images are PNGs. I didn't move them.
-# So if a markdown file refers to "image.png" (relative), and the markdown is now in "database/diagnostics/"
-# and image is in "database/", the link might break if the preprocessor expects them together or if the URL assumes a flat structure.
-
-# Let's check preprocess_content again.
-# It converts `![[image.png]]` to `![image.png](/media/image.png)`.
-# Since `/media` maps to `QUESTIONS_DIR`, and images are still in `QUESTIONS_DIR`,
-# `/media/image.png` will still resolve correctly!
-# So we don't need to change this line, provided we confirm images weren't moved.
 app.add_static_files("/media", QUESTIONS_DIR)
 
 # Enable LaTeX support in the head

@@ -30,6 +30,7 @@ dependencies = [
     { name = "attrs" },
     { name = "frozenlist" },
     { name = "multidict" },
+    
     { name = "propcache" },
     { name = "yarl" },
 ]
