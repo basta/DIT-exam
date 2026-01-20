@@ -167,6 +167,29 @@ def extract_question_text(content):
     return text
 
 
+def extract_solution_text(content):
+    """Extracts the solution text from the markdown content."""
+    parts = content.split("# Solution")
+    if len(parts) > 1:
+        # Return everything after "# Solution"
+        return parts[1].strip()
+    return "No solution text found."
+
+
+def extract_related_topic(content):
+    """Extracts the first related topic from the markdown content."""
+    # Look for "## Related Concepts"
+    parts = content.split("## Related Concepts")
+    if len(parts) > 1:
+        # Look for [[Topic]]
+        match = re.search(r"\[\[(.*?)\]\]", parts[1])
+        if match:
+            return match.group(1)
+    
+    # Fallback to tags or None
+    return None
+
+
 def get_all_questions(progress, track_dir):
     """Fetches all questions with status for the list view."""
     try:
@@ -205,12 +228,25 @@ def get_all_questions(progress, track_dir):
             # Truncate for list view
             q_preview = q_text[:150] + "..." if len(q_text) > 150 else q_text
 
+            # Parse Solution Text
+            sol_text = extract_solution_text(post.content)
+
+            # Parse Topic
+            topic = extract_related_topic(post.content)
+            if not topic:
+                # Fallback to metadata topic if available
+                topic = post.metadata.get("topic", "")
+                if isinstance(topic, list) and topic:
+                     topic = topic[0]
+
             questions.append(
                 {
                     "id": q_id,
                     "file": f,
                     "content": post.content,
                     "question_text": q_preview, # Use this in UI
+                    "solution_text": sol_text,
+                    "topic": topic,
                     "meta": post.metadata,
                     "score": score,
                     "status": status,
@@ -491,45 +527,68 @@ def main_page():
                     ui.label("No questions found matching criteria.").classes("p-4 text-gray-500 italic")
                     return
 
+                def lazy_load_solution(container, question):
+                     # Check if already loaded
+                     if list(container):
+                         return
+                     
+                     with container:
+                        ui.label("Solution").classes("text-xs font-bold text-gray-500 uppercase mb-2")
+                        processed_sol = preprocess_content(question["solution_text"])
+                        ui.markdown(processed_sol).classes("prose w-full max-w-none text-sm")
+                        # Add Re-render Latex call
+                        ui.run_javascript("if (window.MathJax) window.MathJax.typeset();")
+
                 for q in items:
-                    with ui.row().classes("w-full px-4 py-3 border-b hover:bg-gray-50 items-center transition-colors"):
-                        # ID
-                        ui.label(f"#{q['id']}").classes("w-16 text-xs text-gray-400 font-mono")
+                    # Use expansion for inline answer
+                    # We use a custom header to mimic the previous table row layout
+                    # NOTE: Do NOT bind on_value_change here with a lambda that needs the content_container 
+                    # because content_container is not created yet. We bind it AFTER creation below.
+                    with ui.expansion().classes("w-full border-b hover:bg-gray-50 transition-colors group") as expansion:
+                        with expansion.add_slot("header"):
+                             with ui.row().classes("w-full items-center"):
+                                # ID
+                                ui.label(f"#{q['id']}").classes("w-16 text-xs text-gray-400 font-mono")
+                                
+                                # Question
+                                question_text = q["question_text"]
+                                if "title" in q["meta"]:
+                                     question_text = q["meta"]["title"]
+                                     
+                                with ui.column().classes("flex-1"):
+                                     ui.label(question_text).classes("text-sm font-medium text-blue-600")
+
+                                # Topic
+                                topic = q["topic"]
+                                
+                                ui.label(str(topic)).classes("w-32 text-xs truncate bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-center")
+
+                                # Status
+                                status_colors = {
+                                    "Mastered": "bg-green-100 text-green-700",
+                                    "Learned": "bg-green-50 text-green-600",
+                                    "New": "bg-gray-100 text-gray-600",
+                                    "Learning": "bg-yellow-100 text-yellow-700",
+                                    "Hard": "bg-red-100 text-red-700"
+                                }
+                                ui.label(q["status"]).classes(f"w-24 text-center text-xs px-2 py-1 rounded-full font-medium {status_colors.get(q['status'], 'bg-gray-100')}")
+
+                                # Action
+                                with ui.row().classes("w-16 justify-end"):
+                                     # Edit/View icons
+                                     # To stop propagation, using standard Quasar/Vue modifiers is tricky in Python without 'args'.
+                                     # However, we can just use the standard prevent default approach if the event supports it, 
+                                     # but pure NiceGUI/Quasar events often don't expose preventDefault easily in vanilla handlers.
+                                     # A simpler way is to wrapping the button in a div that stops propagation? 
+                                     # OR better: ui.button().on('click.stop', ...) modifier which Quasar supports.
+                                     # We use .on('click', ..., ['stop', 'prevent']) to ensuring no bubbling.
+                                     ui.button(icon="open_in_new").on('click', lambda e, x=q: render_study(user_hash, track, force_card_file=x['file']), ['stop', 'prevent']).props("flat round dense size=sm color=grey").tooltip("Open Full Card")
                         
-                        # Question
-                        # Use extracted question text
-                        question_text = q["question_text"]
-                        # Or use title from frontmatter if available
-                        if "title" in q["meta"]:
-                             question_text = q["meta"]["title"]
-                             
-                        with ui.column().classes("flex-1"):
-                             ui.label(question_text).classes("text-sm font-medium text-blue-600 cursor-pointer").on("click", lambda x=q: render_study(user_hash, track, force_card_file=x['file']))
-                             # ui.label(q["file"]).classes("text-xs text-gray-400")
-
-                        # Topic
-                        topic = q["meta"].get("topic", "")
-                        # If list, take first
-                        if isinstance(topic, list) and topic:
-                            topic = topic[0]
+                        # Expansion Content (Answer) - Lazy Container
+                        content_container = ui.column().classes("w-full bg-gray-50 p-4 border-t")
                         
-                        ui.label(str(topic)).classes("w-32 text-xs truncate bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-center")
-
-                        # Status
-                        status_colors = {
-                            "Mastered": "bg-green-100 text-green-700",
-                            "Learned": "bg-green-50 text-green-600",
-                            "New": "bg-gray-100 text-gray-600",
-                            "Learning": "bg-yellow-100 text-yellow-700",
-                            "Hard": "bg-red-100 text-red-700"
-                        }
-                        ui.label(q["status"]).classes(f"w-24 text-center text-xs px-2 py-1 rounded-full font-medium {status_colors.get(q['status'], 'bg-gray-100')}")
-
-                        # Action
-                        with ui.row().classes("w-16 justify-end"):
-                            # Edit/View icons
-                            # For now just view
-                             ui.button(icon="visibility", on_click=lambda x=q: render_study(user_hash, track, force_card_file=x['file'])).props("flat round dense size=sm color=grey")
+                        # Correctly bind the handler now that content_container exists
+                        expansion.on_value_change(lambda e, c=content_container, x=q: lazy_load_solution(c, x) if e.value else None)
             
             with list_container:
                 render_list_items(questions)
@@ -547,9 +606,6 @@ def main_page():
                 "w-full justify-between items-center mb-6 border-b pb-4"
             ):
                 with ui.row().classes("items-center gap-2"):
-                     # If in forced view, back goes to list? Or track selection? 
-                     # For now, back to list if forced? No, generic back logic is hard without history.
-                     # Let's keep it simple: Back -> Track Selection (Home)
                      ui.button(icon="arrow_back", on_click=lambda: render_track_selection(user_hash)).props("flat round dense")
                      ui.label(track["name"]).classes("text-xl font-bold")
                 
