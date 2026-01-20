@@ -133,6 +133,104 @@ def get_stats(progress, track_dir):
     return bins
 
 
+    return bins
+
+
+def extract_question_text(content):
+    """Extracts the question text from the markdown content."""
+    lines = content.split('\n')
+    question_lines = []
+    capture = False
+    
+    for line in lines:
+        if line.strip().startswith("# Question"):
+            capture = True
+            continue
+        
+        if capture:
+            # Stop at the next header or separator
+            if line.strip().startswith("#") or line.strip().startswith("---"):
+                break
+            # Skip empty lines at the start? No, strip later.
+            question_lines.append(line)
+            
+    text = "\n".join(question_lines).strip()
+    
+    # If no "# Question" header found, or empty, maybe return the whole thing or first part?
+    # Fallback to first non-empty paragraph if "Question" header is missing
+    if not text and not capture:
+        # Just take the first paragraph
+        paras = content.split('\n\n')
+        if paras:
+             text = paras[0].strip()
+
+    return text
+
+
+def get_all_questions(progress, track_dir):
+    """Fetches all questions with status for the list view."""
+    try:
+        files = [
+            f
+            for f in os.listdir(track_dir)
+            if f.endswith(".md") and f != "_template.md"
+        ]
+    except FileNotFoundError:
+        return []
+
+    questions = []
+    for f in files:
+        try:
+            post = frontmatter.load(os.path.join(track_dir, f))
+            q_id = post.metadata.get("id", f)
+
+            score = 0
+            if q_id in progress:
+                score = progress[q_id].get("score", 0)
+
+            # Determine status
+            if score < -20:
+                status = "Mastered"
+            elif score < 0:
+                status = "Learned"
+            elif score == 0:
+                status = "New"
+            elif score <= 20:
+                status = "Learning"
+            else:
+                status = "Hard"
+            
+            # Parse Question Text
+            q_text = extract_question_text(post.content)
+            # Truncate for list view
+            q_preview = q_text[:150] + "..." if len(q_text) > 150 else q_text
+
+            questions.append(
+                {
+                    "id": q_id,
+                    "file": f,
+                    "content": post.content,
+                    "question_text": q_preview, # Use this in UI
+                    "meta": post.metadata,
+                    "score": score,
+                    "status": status,
+                }
+            )
+        except Exception as e:
+            print(f"Error loading {f}: {e}")
+
+    # Sort by ID (usually numeric)
+    # Try to parse ID as int if possible for better sorting
+    def sort_key(x):
+        try:
+            return int(x["id"])
+        except ValueError:
+            return x["id"]
+
+    questions.sort(key=sort_key)
+    return questions
+
+
 def get_due_card(progress, track_dir):
     """Finds the highest priority card for cramming."""
     # List all .md files (exclude _template.md)
@@ -315,7 +413,129 @@ def main_page():
                                 "text-sm text-gray-600"
                             )
 
-    def render_study(user_hash, track):
+    def render_question_list(user_hash, track):
+        content_area.clear()
+
+        # Load Progress
+        progress = load_progress(user_hash)
+        questions = get_all_questions(progress, track["path"])
+
+        with content_area:
+            # Header
+            with ui.row().classes(
+                "w-full justify-between items-center mb-6 border-b pb-4"
+            ):
+                with ui.row().classes("items-center gap-4"):
+                    ui.button(on_click=lambda: render_study(user_hash, track)).props(
+                        "flat icon=arrow_back round"
+                    )
+                    ui.label(track["name"]).classes("text-xl font-bold")
+
+                with ui.row().classes("items-center gap-2"):
+                    ui.button("Switch Track", on_click=lambda: render_track_selection(user_hash)).props(
+                         "outline size=sm"
+                    )
+                    # ui.button(icon="dark_mode").props("flat round") # Future: Dark mode toggle
+
+            # Search/Filter Bar
+            with ui.row().classes("w-full mb-4 gap-4"):
+                search = ui.input("Search questions, tags, or IDs...").props(
+                    "outlined dense rounded"
+                ).classes("flex-1")
+                
+                # Simple Status Filter (Dropdown)
+                status_filter = ui.select(
+                    ["All Statuses", "Mastered", "Learned", "New", "Learning", "Hard"],
+                    value="All Statuses",
+                ).props("outlined dense options-dense")
+                
+                # Update filter logic to include status
+                def filter_full():
+                     q = search.value.lower()
+                     s = status_filter.value
+                     
+                     filtered = []
+                     for item in questions:
+                         # Text search
+                         match_text = (q in item["content"].lower() or 
+                                       q in str(item["id"]).lower() or 
+                                       q in str(item["meta"]).lower())
+                         
+                         # Status search
+                         match_status = (s == "All Statuses" or item["status"] == s)
+                         
+                         if match_text and match_status:
+                             filtered.append(item)
+                     
+                     list_container.clear()
+                     with list_container:
+                         render_list_items(filtered)
+
+                search.on("input", filter_full)
+                status_filter.on_value_change(filter_full)
+
+
+            # Table Header
+            with ui.row().classes("w-full px-4 py-2 bg-gray-50 border-b text-xs font-bold text-gray-500 uppercase tracking-wider"):
+                ui.label("ID").classes("w-16")
+                ui.label("Question").classes("flex-1")
+                ui.label("Topic").classes("w-32")
+                ui.label("Status").classes("w-24 text-center")
+                ui.label("Action").classes("w-16 text-right")
+
+            # Questions List
+            list_container = ui.column().classes("w-full gap-0")
+
+            def render_list_items(items):
+                if not items:
+                    ui.label("No questions found matching criteria.").classes("p-4 text-gray-500 italic")
+                    return
+
+                for q in items:
+                    with ui.row().classes("w-full px-4 py-3 border-b hover:bg-gray-50 items-center transition-colors"):
+                        # ID
+                        ui.label(f"#{q['id']}").classes("w-16 text-xs text-gray-400 font-mono")
+                        
+                        # Question
+                        # Use extracted question text
+                        question_text = q["question_text"]
+                        # Or use title from frontmatter if available
+                        if "title" in q["meta"]:
+                             question_text = q["meta"]["title"]
+                             
+                        with ui.column().classes("flex-1"):
+                             ui.label(question_text).classes("text-sm font-medium text-blue-600 cursor-pointer").on("click", lambda x=q: render_study(user_hash, track, force_card_file=x['file']))
+                             # ui.label(q["file"]).classes("text-xs text-gray-400")
+
+                        # Topic
+                        topic = q["meta"].get("topic", "")
+                        # If list, take first
+                        if isinstance(topic, list) and topic:
+                            topic = topic[0]
+                        
+                        ui.label(str(topic)).classes("w-32 text-xs truncate bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full text-center")
+
+                        # Status
+                        status_colors = {
+                            "Mastered": "bg-green-100 text-green-700",
+                            "Learned": "bg-green-50 text-green-600",
+                            "New": "bg-gray-100 text-gray-600",
+                            "Learning": "bg-yellow-100 text-yellow-700",
+                            "Hard": "bg-red-100 text-red-700"
+                        }
+                        ui.label(q["status"]).classes(f"w-24 text-center text-xs px-2 py-1 rounded-full font-medium {status_colors.get(q['status'], 'bg-gray-100')}")
+
+                        # Action
+                        with ui.row().classes("w-16 justify-end"):
+                            # Edit/View icons
+                            # For now just view
+                             ui.button(icon="visibility", on_click=lambda x=q: render_study(user_hash, track, force_card_file=x['file'])).props("flat round dense size=sm color=grey")
+            
+            with list_container:
+                render_list_items(questions)
+
+
+    def render_study(user_hash, track, force_card_file=None):
         content_area.clear()
 
         # Load Progress
@@ -323,17 +543,42 @@ def main_page():
 
         # Header with Track Name and Switch Button
         with content_area:
-            pass
-            # with ui.row().classes(
-            #     "w-full justify-between items-center mb-6 border-b pb-4"
-            # ):
-            #     ui.label(track["name"]).classes("text-xl font-bold")
-            #     ui.button(
-            #         "Switch Track", on_click=lambda: render_track_selection(user_hash)
-            #     ).props("outline size=sm")
+            with ui.row().classes(
+                "w-full justify-between items-center mb-6 border-b pb-4"
+            ):
+                with ui.row().classes("items-center gap-2"):
+                     # If in forced view, back goes to list? Or track selection? 
+                     # For now, back to list if forced? No, generic back logic is hard without history.
+                     # Let's keep it simple: Back -> Track Selection (Home)
+                     ui.button(icon="arrow_back", on_click=lambda: render_track_selection(user_hash)).props("flat round dense")
+                     ui.label(track["name"]).classes("text-xl font-bold")
+                
+                with ui.row().classes("gap-2"):
+                    ui.button("Switch Track", on_click=lambda: render_track_selection(user_hash)).props("outline size=sm")
+                    ui.button("List View", on_click=lambda: render_question_list(user_hash, track)).props("unelevated color=blue size=sm")
 
         # Fetch Data
-        card = get_due_card(progress, track["path"])
+        card = None
+        if force_card_file:
+             try:
+                f_path = os.path.join(track["path"], force_card_file)
+                post = frontmatter.load(f_path)
+                q_id = post.metadata.get("id", force_card_file)
+                card_data = progress.get(q_id, {})
+                score = card_data.get("score", 0)
+                card = {
+                    "id": q_id,
+                    "file": force_card_file,
+                    "content": post.content,
+                    "meta": post.metadata,
+                    "score": score,
+                }
+             except Exception as e:
+                print(f"Error loading {force_card_file}: {e}")
+        
+        if not card:
+            # Fallback to due card if generic study or load failed
+            card = get_due_card(progress, track["path"])
 
         if not card:
             with content_area:
@@ -387,6 +632,9 @@ def main_page():
                         ui.button(icon="open_in_new").props(
                             f'flat round size=xs density=compact color=grey href="{github_url}" target="_blank"'
                         ).tooltip("Open in GitHub")
+                        
+                        if force_card_file:
+                             ui.label("(Preview Mode)").classes("text-xs bg-yellow-100 text-yellow-800 px-2 rounded")
 
                 with ui.row().classes("items-center gap-4 flex-1 justify-end"):
                     # Echart Histogram
