@@ -418,6 +418,7 @@ def main_page():
             def check_pass():
                 if pwd.value:
                     user_hash = get_user_hash(pwd.value)
+                    app.storage.user['user_hash'] = user_hash
                     render_track_selection(user_hash)
                 else:
                     ui.notify("Please enter a passkey", color="warning")
@@ -430,7 +431,10 @@ def main_page():
         tracks = get_tracks()
 
         with content_area:
-            ui.label("Select a Track").classes("text-2xl font-bold mb-6")
+            with ui.row().classes("w-full justify-between items-center mb-6"):
+                ui.label("Select a Track").classes("text-2xl font-bold")
+                ui.button("Logout", on_click=lambda: (app.storage.user.clear(), render_login())).props("flat color=grey")
+
 
             if not tracks:
                 ui.label("No tracks found.").classes("text-red-500")
@@ -645,10 +649,14 @@ def main_page():
                 ui.button(
                     "Refresh", on_click=lambda: render_study(user_hash, track)
                 ).classes("mt-4")
-                ui.button("Logout", on_click=render_login).props("color=grey").classes(
+                ui.button(
+                    "Refresh", on_click=lambda: render_study(user_hash, track)
+                ).classes("mt-4")
+                ui.button("Logout", on_click=lambda: (app.storage.user.clear(), render_login())).props("color=grey").classes(
                     "mt-4"
                 )
             return
+
 
         # Render Card
         with content_area:
@@ -824,7 +832,12 @@ def main_page():
             ui.run_javascript("if (window.MathJax) window.MathJax.typeset();")
 
     # Initial Render
-    render_login()
+    # Check for persisting session
+    if 'user_hash' in app.storage.user:
+        render_track_selection(app.storage.user['user_hash'])
+    else:
+        render_login()
+
 
 
 app.add_static_files("/media", QUESTIONS_DIR)
@@ -849,4 +862,7 @@ ui.add_head_html(
 if __name__ in {"__main__", "__mp_main__"}:
     # Remove 'native' to run in browser instead of a window
     # port=8080 makes it accessible on your server
-    ui.run(title="Cybernetics Study", port=8080, show=False)
+    # Remove 'native' to run in browser instead of a window
+    # port=8080 makes it accessible on your server
+    ui.run(title="Cybernetics Study", port=8080, show=False, storage_secret="your-secret-key-here")
+
