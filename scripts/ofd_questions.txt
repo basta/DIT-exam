@@ -1,0 +1,173 @@
+Define the Cumulative Distribution Function (CDF) and the Probability Density Function (PDF). How are they mathematically related?
+
+State the definition of the expected value (mean) and variance of a continuous random variable X.
+
+Given a random vector x with mean μ and covariance matrix P, what is the mean and covariance of the linear transformation y = Ax + b?
+
+Explain the difference between statistical independence and uncorrelatedness of two random variables. Does uncorrelatedness imply independence?
+
+State Bayes' Theorem (Bayes' Rule) for probability density functions.
+
+What is the definition of an unbiased estimator?
+
+Define the Mean Squared Error (MSE) of an estimator. How can it be decomposed into variance and bias?
+
+What does it mean for an estimator to be consistent? How does this differ from being unbiased?
+
+Explain the concept of the Likelihood Function. How does it differ from a Probability Density Function?
+
+Describe the Maximum Likelihood Estimator (MLE) method. What is the objective function being maximized?
+
+Under what specific conditions is the Least Squares (LS) estimator equivalent to the Maximum Likelihood (MLE) estimator?
+
+Define Fisher Information. What does it measure regarding the unknown parameter θ?
+
+State the Cramér-Rao Lower Bound (CRLB) inequality. What is its significance in estimation theory?
+
+What is an efficient estimator in the context of the Cramér-Rao Lower Bound?
+
+Consider a set of independent and identically distributed (i.i.d.) samples. Is the standard sample variance formula $S^2 = \frac{1}{N} \sum (x_i - \bar{x})^2$ an unbiased estimator? If not, how do you correct it?
+
+Explain the fundamental difference between the Classical (Frequentist) approach and the Bayesian approach to parameter estimation.
+
+Write down Bayes' Rule for a parameter vector theta given data D and identify the roles of the Prior, Likelihood, Posterior, and Evidence.
+
+Write the integral for the Evidence term (denominator) in Bayes' rule. Why is this term often ignored for MAP estimation but crucial for model comparison?
+
+Match the following cost functions to their optimal estimators: Quadratic Error, Absolute Error, and Uniform Cost.
+
+Show that the estimator that minimizes the Mean Squared Error in a Bayesian framework is the Conditional Mean of the posterior distribution.
+
+Define the MAP estimator. How does it relate to the Maximum Likelihood Estimator (MLE) and under what condition are they identical?
+
+What is a conjugate prior? Why are they computationally useful in recursive Bayesian estimation?
+
+What is the purpose of a non-informative or diffuse prior? How does a flat prior influence the posterior distribution compared to the likelihood?
+
+Derive or state the recursive form of Bayes' rule. How do we use the posterior from time step k-1 to calculate the posterior at time step k?
+
+If the prior is Gaussian and the likelihood is linear-Gaussian, what happens to the posterior covariance matrix as we process more data, and does it depend on the measurement values?
+
+If you have a parameter vector theta = [theta1, theta2] but only care about theta1, how do you handle theta2? Explain the process of marginalization.
+
+Why is calculating the exact Bayesian posterior often analytically intractable for non-Gaussian, non-linear problems?
+
+Define the standard Linear Regression Model in the form y = phi^T * theta + e. What do phi, theta, and e represent?
+
+Derive the analytical solution for the Batch Least Squares (LS) estimator.
+
+State the Geometric Orthogonality Principle of Least Squares. Which two vectors must be orthogonal?
+
+Under what specific assumptions regarding the noise term 'e' is the Least Squares estimator unbiased?
+
+Under what assumption is the Least Squares estimator also the Maximum Likelihood Estimator (MLE)?
+
+Explain the difference between Ordinary Least Squares (OLS) and Weighted Least Squares (WLS). When would you prefer WLS?
+
+State the Matrix Inversion Lemma (Woodbury Identity). Why is it crucial for deriving the Recursive Least Squares (RLS) algorithm?
+
+Write down the standard Recursive Least Squares (RLS) update equations (Gain, Estimation update, Covariance update).
+
+Explain the purpose of the "Forgetting Factor" (lambda) in RLS. How does it affect the "memory" of the algorithm?
+
+What is the trade-off when choosing the value of the forgetting factor lambda (e.g., lambda = 0.99 vs lambda = 0.90)?
+
+Describe the problem of "Covariance Blow-up" (Windup) in RLS with a forgetting factor. When does this typically occur?
+
+If the regression vector phi depends on past outputs (e.g., in an ARX model) and the noise is colored, is the LS estimator consistent? Explain why or why not.
+
+What is the Instrumental Variable (IV) method designed to solve?
+
+What are the two fundamental conditions that a valid Instrumental Variable vector 'z' must satisfy?
+
+How do you initialize the covariance matrix P(0) and the estimate theta(0) for the RLS algorithm? What does a large P(0) imply?
+
+State the standard discrete-time linear state-space model equations (Process and Measurement). Define all matrices and vectors involved.
+
+What are the standard statistical assumptions regarding the process noise w(k) and measurement noise v(k)?
+
+Explain the two distinct steps of the Kalman Filter cycle: Time Update (Prediction) and Measurement Update (Correction).
+
+Write the equations for the predicted state estimate and its error covariance (P_k|k-1) based on the previous estimate.
+
+Define the "Innovation" (or measurement residual). What statistical properties (mean, covariance, correlation) should the innovation sequence possess if the filter is operating optimally?
+
+Write the expression for the Kalman Gain (K). Intuitively, how does it balance the trust between the model prediction and the actual measurement?
+
+Analyze the behavior of the Kalman Gain: What happens to K if the measurement noise covariance R approaches infinity? What if R approaches zero?
+
+Under what conditions is the Kalman Filter the optimal Minimum Mean Squared Error (MMSE) estimator?
+
+If the noise processes are NOT Gaussian (but are still white and zero-mean), is the Kalman Filter still the absolute best estimator? If not, what property does it retain (BLUE)?
+
+Describe the fundamental difference between the Linear Kalman Filter and the Extended Kalman Filter (EKF).
+
+In the EKF, how are the non-linear state transition and measurement functions handled? (Mention Jacobians).
+
+Why is the EKF not guaranteed to be optimal or stable, unlike the linear Kalman Filter?
+
+What is the role of the process noise covariance matrix Q? How does increasing the values in Q affect the filter's "bandwidth" or responsiveness to changes?
+
+Explain the concept of "Filter Consistency." What does it mean if the filter is inconsistent, and how can checking the innovation sequence help detect this?
+
+In the context of EKF, what is the difference between linearizing around the "nominal trajectory" vs. linearizing around the "current estimate"?
+
+Formulate the change detection problem as a statistical hypothesis testing problem (Null Hypothesis H0 vs. Alternative Hypothesis H1).
+
+Define Type I Error (False Positive/False Alarm) and Type II Error (False Negative/Missed Detection). Which probabilities represent these errors?
+
+Define the Likelihood Ratio $L(y)$. Why do we often work with the Log-Likelihood Ratio $l(y)$ instead?
+
+State the Neyman-Pearson Lemma. What quantity does it maximize for a fixed False Alarm probability?
+
+What is a Receiver Operating Characteristic (ROC) curve? What do the axes represent, and what constitutes a "better" detector on this plot?
+
+Explain the Generalized Likelihood Ratio (GLR) Test. How do we handle unknown parameters (like the magnitude of the fault) in the likelihood ratio?
+
+Describe the basic operation of the CUSUM (Cumulative Sum) algorithm. What is it designed to detect?
+
+In the CUSUM algorithm, what is the role of the drift parameter (often denoted as $\nu$) and the threshold ($h$)?
+
+How does the CUSUM stopping rule function? When is an alarm triggered?
+
+Compare the CUSUM algorithm to a simple geometric moving average or a fixed-window detector. What advantage does CUSUM have regarding small, persistent changes?
+
+Explain how the Kalman Filter innovations (residuals) can be used for fault detection. What statistical property of the innovations is violated if a fault occurs?
+
+What is the $\chi^2$ (Chi-square) test on the innovations? What specific type of fault or anomaly does it primarily detect?
+
+Describe the Multiple Model (MMAE) approach to Fault Detection and Isolation. How do we determine which model (faulty or healthy) is currently active?
+
+In a bank of Kalman Filters used for detection, what does the "Model Probability" $\mu_j(k)$ represent, and how is it updated recursively?
+
+What is Wald's Sequential Probability Ratio Test (SPRT)? How does it differ from a standard fixed-sample-size test?
+
+Explain the fundamental principle of Monte Carlo integration. How does it approximate an intractable integral?
+
+State the Strong Law of Large Numbers in the context of Monte Carlo approximation. What happens as the number of samples N approaches infinity?
+
+Define Importance Sampling. Why do we need a "proposal distribution" (or importance density) $q(x)$ instead of sampling directly from the target distribution $p(x)$?
+
+Write the formula for the Importance Weights $w_i$. How are they related to the target distribution and the proposal distribution?
+
+Why must the weights in a Monte Carlo estimator be normalized?
+
+Describe the Sequential Importance Sampling (SIS) algorithm. How are the weights updated recursively as new data arrives?
+
+Explain the Degeneracy Phenomenon in Sequential Importance Sampling. What happens to the variance of the importance weights over time?
+
+What is the Effective Sample Size ($N_{eff}$)? How is it approximated using the normalized weights?
+
+What is the purpose of the Resampling step in a Particle Filter (SIR algorithm)? How does it address the degeneracy problem?
+
+Describe the basic Systematic Resampling algorithm. How does it select which particles to keep and which to discard?
+
+What is Sample Impoverishment (or Loss of Diversity) caused by resampling? Why is it dangerous for the filter?
+
+Compare the Particle Filter to the Extended Kalman Filter (EKF). In what specific scenarios (type of non-linearity, type of noise) does the Particle Filter significantly outperform the EKF?
+
+What is the "Transition Prior" (sampling from the system dynamics) when used as a proposal distribution? Why is it the most common choice, even if not optimal?
+
+What characterizes the Optimal Proposal Distribution? Which variance does it minimize?
+
+Explain the concept of Rao-Blackwellized Particle Filters. How does it combine the Kalman Filter and Particle Filter to improve efficiency?
